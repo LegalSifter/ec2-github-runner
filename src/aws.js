@@ -94,11 +94,13 @@ async function startEc2Instance(label, githubRegistrationToken) {
 
           if (result.SpotInstanceRequests[0].State === 'active') {
             const ec2InstanceId = result.SpotInstanceRequests[0].InstanceId;
-            const tagParams = {
-              Resources: [ec2InstanceId],
-              Tags: config.tagSpecifications,
-            };
-            await ec2.createTags(tagParams).promise();
+            if (!config.tagSpecifications && config.tagSpecifications.length > 0) {
+              const tagParams = {
+                Resources: [ec2InstanceId],
+                Tags: config.tagSpecifications,
+              };
+              await ec2.createTags(tagParams).promise();
+            }            
             core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
             clearInterval(interval);
             resolve(ec2InstanceId);

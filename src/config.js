@@ -29,6 +29,8 @@ class Config {
         { ResourceType: 'instance', Tags: tags },
         { ResourceType: 'volume', Tags: tags },
       ];
+    } else {
+      this.tagSpecifications = tags;
     }
 
     // the values of github.context.repo.owner and github.context.repo.repo are taken from
