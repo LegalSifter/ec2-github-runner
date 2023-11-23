@@ -93,7 +93,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
 
           if (result.SpotInstanceRequests[0].State === 'active') {
             const ec2InstanceId = result.SpotInstanceRequests[0].InstanceId;
-            if (!config.tagSpecifications && config.tagSpecifications.length > 0) {
+            if (config.tagSpecifications && config.tagSpecifications.length > 0) {
               const tagParams = {
                 Resources: [ec2InstanceId],
                 Tags: config.tagSpecifications,
