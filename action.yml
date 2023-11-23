@@ -69,6 +69,25 @@ inputs:
     description: >-
       Specifies bash commands to run before the runner starts. It's useful for installing dependencies with apt-get, yum, dnf, etc.
     required: false
+  key-pair:
+    description: >-
+      A Key Pair name to securely connect to the instance.
+    required: false
+  use-spot-instance:
+    description: >-
+      Whether to create a spot instance or a regular instance.
+    required: false
+    default: false
+  use-public-ip:
+    description: >-
+      Whether to assign public IP to a new instance or not.
+    required: false
+    default: false
+  volume-size:
+    description: >-
+      Volume size is needed for instance.
+    required: false
+    default: 30
 
 outputs:
   label:
