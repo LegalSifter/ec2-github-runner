@@ -66,7 +66,6 @@ async function startEc2Instance(label, githubRegistrationToken) {
         ],
         IamInstanceProfile: { Name: config.input.iamRoleName },
       },
-      TagSpecifications: config.tagSpecifications,
     };
 
     try {
