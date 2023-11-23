@@ -96,7 +96,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
             const ec2InstanceId = result.SpotInstanceRequests[0].InstanceId;
             const tagParams = {
               Resources: [ec2InstanceId],
-              Tags: config.input.tagSpecifications
+              Tags: config.tagSpecifications,
             };
             await ec2.createTags(tagParams).promise();
             core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
