@@ -32,16 +32,26 @@ function buildUserDataScript(githubRegistrationToken, label) {
   }
 }
 
+async function getImageNameFromSSM(parameter_name) {
+  const ssm = new AWS.SSM();
+  const params = {
+    Name: parameter_name,
+    WithDecryption: true,
+  };
+  const result = await ssm.getParameter(params).promise();
+  return result.Parameter.Value;
+}
+
 async function startEc2Instance(label, githubRegistrationToken) {
   const ec2 = new AWS.EC2();
 
   const userData = buildUserDataScript(githubRegistrationToken, label);
-
+  const ImageId = await getImageNameFromSSM(config.input.ec2ImageId);
   if (config.input.useSpotInstance) {
     const params = {
       InstanceCount: 1,
       LaunchSpecification: {
-        ImageId: config.input.ec2ImageId,
+        ImageId,
         InstanceType: config.input.ec2InstanceType,
         KeyName: config.input.keyName,
         UserData: Buffer.from(userData.join('\n')).toString('base64'),
@@ -99,7 +109,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
                 Tags: config.tagSpecifications,
               };
               await ec2.createTags(tagParams).promise();
-            }            
+            }
             core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
             clearInterval(interval);
             resolve(ec2InstanceId);
@@ -115,7 +125,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
     }
   } else {
     const params = {
-      ImageId: config.input.ec2ImageId,
+      ImageId,
       InstanceType: config.input.ec2InstanceType,
       KeyName: config.input.keyName,
       MinCount: 1,

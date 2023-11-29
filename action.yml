@@ -17,7 +17,7 @@ inputs:
     required: true
   ec2-image-id:
     description: >-
-      EC2 Image Id (AMI). The new runner will be launched from this image.
+      SSM parameter name. The new runner will be launched with AMI image defined in it.
       This input is required if you use the 'start' mode.
     required: false
   ec2-instance-type:
