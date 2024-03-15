@@ -23,8 +23,8 @@ function buildUserDataScript(githubRegistrationToken, label) {
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
       'case $(uname -m) in aarch64) ARCH="arm64" ;; amd64|x86_64) ARCH="x64" ;; esac && export RUNNER_ARCH=${ARCH}',
-      'curl -O -L https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-linux-${RUNNER_ARCH}-2.311.0.tar.gz',
-      'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.311.0.tar.gz',
+      'curl -O -L https://github.com/actions/runner/releases/download/v2.313.0/actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
+      'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
       'export RUNNER_ALLOW_RUNASROOT=1',
       `./config.sh --unattended --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
       './run.sh',
@@ -144,6 +144,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
       ],
       NetworkInterfaces: [
         {
+          DeviceIndex: 0,
           AssociatePublicIpAddress: config.input.usePublicIP,
           SubnetId: config.input.subnetId,
           Groups: [config.input.securityGroupId],
