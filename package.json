@@ -21,7 +21,7 @@
     "@actions/github": "^6.0.0",
     "@aws-sdk/client-ec2": "^3.557.0",
     "@aws-sdk/client-ssm": "^3.557.0",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.23"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.1",
