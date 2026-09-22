@@ -97,16 +97,20 @@ inputs:
       unreachable.
 
       The clock starts at BOOT, not at job start, so the budget must cover boot,
-      time spent waiting for a job, the job itself, and teardown. GitHub caps a
-      single job at 6 hours, so the default of 480 (8 hours) leaves 2 hours of
-      headroom above the longest job GitHub will allow. The regression suite in
-      ls-pipeline_refactored-python alone runs over 3 hours.
+      time spent waiting for a job, the job itself, and teardown.
 
-      Lower it for short workflows - a tighter TTL reclaims a stranded instance
-      sooner. Set to 0 to disable, which restores the old behaviour of an
-      instance that can live forever.
+      Note that GitHub's 6-hour job cap applies only to GitHub-hosted runners.
+      A self-hosted job may run for up to 5 days, so there is no platform limit
+      to size this against - it has to come from the measured job length.
+
+      The default of 360 is twice the longest run observed on this stack (the
+      ls-pipeline_refactored-python regression suite, 176 minutes at its worst).
+
+      SET THIS EXPLICITLY PER WORKFLOW. A TTL only needs to exceed your own job,
+      and a tighter one reclaims a stranded instance sooner. Set to 0 to disable,
+      which restores the old behaviour of an instance that can live forever.
     required: false
-    default: 480
+    default: 360
 
 outputs:
   label:
