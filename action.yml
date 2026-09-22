@@ -88,6 +88,16 @@ inputs:
       Volume size is needed for instance.
     required: false
     default: 30
+  runner-ttl-minutes:
+    description: >-
+      Hard time-to-live for the instance, in minutes. The instance schedules its
+      own shutdown at boot and is launched with InstanceInitiatedShutdownBehavior
+      set to terminate, so it self-destructs after this long even if the calling
+      workflow is cancelled, the stop-runner job never runs, or GitHub is
+      unreachable. Defaults to 360, matching GitHub's own maximum job duration,
+      so no job that GitHub would allow can outlive it. Set to 0 to disable.
+    required: false
+    default: 360
 
 outputs:
   label:

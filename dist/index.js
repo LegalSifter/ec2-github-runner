@@ -144532,7 +144532,7 @@ module.exports = {
 
 
 const { parseSetCookie } = __nccwpck_require__(8915)
-const { stringify, getHeadersList } = __nccwpck_require__(3834)
+const { stringify } = __nccwpck_require__(3834)
 const { webidl } = __nccwpck_require__(4222)
 const { Headers } = __nccwpck_require__(6349)
 
@@ -144608,14 +144608,13 @@ function getSetCookies (headers) {
 
   webidl.brandCheck(headers, Headers, { strict: false })
 
-  const cookies = getHeadersList(headers).cookies
+  const cookies = headers.getSetCookie()
 
   if (!cookies) {
     return []
   }
 
-  // In older versions of undici, cookies is a list of name:value.
-  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
+  return cookies.map((pair) => parseSetCookie(pair))
 }
 
 /**
@@ -145043,14 +145042,15 @@ module.exports = {
 /***/ }),
 
 /***/ 3834:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module) => {
 
 "use strict";
 
 
-const assert = __nccwpck_require__(2613)
-const { kHeadersList } = __nccwpck_require__(6443)
-
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
 function isCTLExcludingHtab (value) {
   if (value.length === 0) {
     return false
@@ -145311,31 +145311,13 @@ function stringify (cookie) {
   return out.join('; ')
 }
 
-let kHeadersListNode
-
-function getHeadersList (headers) {
-  if (headers[kHeadersList]) {
-    return headers[kHeadersList]
-  }
-
-  if (!kHeadersListNode) {
-    kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-      (symbol) => symbol.description === 'headers list'
-    )
-
-    assert(kHeadersListNode, 'Headers cannot be parsed')
-  }
-
-  const headersList = headers[kHeadersListNode]
-  assert(headersList)
-
-  return headersList
-}
-
 module.exports = {
   isCTLExcludingHtab,
-  stringify,
-  getHeadersList
+  validateCookieName,
+  validateCookiePath,
+  validateCookieValue,
+  toIMFDate,
+  stringify
 }
 
 
@@ -149339,6 +149321,7 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = __nccwpck_require__(5523)
+const util = __nccwpck_require__(9023)
 const { webidl } = __nccwpck_require__(4222)
 const assert = __nccwpck_require__(2613)
 
@@ -149892,6 +149875,9 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 
@@ -159068,6 +159054,20 @@ class Pool extends PoolBase {
       ? { ...options.interceptors }
       : undefined
     this[kFactory] = factory
+
+    this.on('connectionError', (origin, targets, error) => {
+      // If a connection error occurs, we remove the client from the pool,
+      // and emit a connectionError event. They will not be re-used.
+      // Fixes https://github.com/nodejs/undici/issues/3895
+      for (const target of targets) {
+        // Do not use kRemoveClient here, as it will close the client,
+        // but the client cannot be closed in this state.
+        const idx = this[kClients].indexOf(target)
+        if (idx !== -1) {
+          this[kClients].splice(idx, 1)
+        }
+      }
+    })
   }
 
   [kGetDispatcher] () {
@@ -162093,6 +162093,22 @@ const { SSMClient, GetParameterCommand } = __nccwpck_require__(4736);
 const core = __nccwpck_require__(7484);
 const config = __nccwpck_require__(1283);
 
+// Schedules the instance to shut itself down after the configured TTL.
+// Paired with InstanceInitiatedShutdownBehavior: 'terminate' below, this makes the
+// instance self-destruct with no dependency on the workflow, on stop-runner, or on
+// GitHub being reachable. It is deliberately the FIRST thing user-data does, so a
+// later failure in the boot script cannot leave an instance without a TTL.
+function ttlPreamble() {
+  const ttl = parseInt(config.input.runnerTtlMinutes, 10);
+  if (!ttl || ttl <= 0) {
+    return ['echo "runner-ttl-minutes disabled - instance has NO self-destruct"'];
+  }
+  return [
+    `shutdown -h +${ttl} "ec2-github-runner TTL ${ttl}m reached - self-terminating" || true`,
+    `echo "TTL armed: this instance self-terminates in ${ttl} minutes"`,
+  ];
+}
+
 // User data scripts are run as the root user
 function buildUserDataScript(githubRegistrationToken, label) {
   if (config.input.runnerHomeDir) {
@@ -162100,6 +162116,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
     // to be pre-installed in the AMI, so we simply cd into that directory and then start the runner
     return [
       '#!/bin/bash',
+      ...ttlPreamble(),
       `cd "${config.input.runnerHomeDir}"`,
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
@@ -162110,6 +162127,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
   } else {
     return [
       '#!/bin/bash',
+      ...ttlPreamble(),
       'mkdir actions-runner && cd actions-runner',
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
@@ -162181,6 +162199,9 @@ async function startEc2Instance(label, githubRegistrationToken) {
     },
     ],
     IamInstanceProfile: { Name: config.input.iamRoleName },
+    // Without this, a shutdown leaves a STOPPED instance and its volume billing
+    // indefinitely. Terminate so the TTL actually reclaims the resources.
+    InstanceInitiatedShutdownBehavior: 'terminate',
     TagSpecifications: config.tagSpecifications,
     InstanceMarketOptions: buildMarketOptions(),
   };
@@ -162273,6 +162294,7 @@ class Config {
       keyName: core.getInput('key-pair'),
       usePublicIP: core.getBooleanInput('use-public-ip'),
       volumeSize: core.getInput('volume-size'),
+      runnerTtlMinutes: core.getInput('runner-ttl-minutes'),
     };
 
     const tags = JSON.parse(core.getInput('aws-resource-tags'));

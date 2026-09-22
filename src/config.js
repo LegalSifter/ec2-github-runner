@@ -19,6 +19,7 @@ class Config {
       keyName: core.getInput('key-pair'),
       usePublicIP: core.getBooleanInput('use-public-ip'),
       volumeSize: core.getInput('volume-size'),
+      runnerTtlMinutes: core.getInput('runner-ttl-minutes'),
     };
 
     const tags = JSON.parse(core.getInput('aws-resource-tags'));

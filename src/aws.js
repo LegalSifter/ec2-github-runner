@@ -4,6 +4,22 @@ const { SSMClient, GetParameterCommand } = require("@aws-sdk/client-ssm");
 const core = require('@actions/core');
 const config = require('./config');
 
+// Schedules the instance to shut itself down after the configured TTL.
+// Paired with InstanceInitiatedShutdownBehavior: 'terminate' below, this makes the
+// instance self-destruct with no dependency on the workflow, on stop-runner, or on
+// GitHub being reachable. It is deliberately the FIRST thing user-data does, so a
+// later failure in the boot script cannot leave an instance without a TTL.
+function ttlPreamble() {
+  const ttl = parseInt(config.input.runnerTtlMinutes, 10);
+  if (!ttl || ttl <= 0) {
+    return ['echo "runner-ttl-minutes disabled - instance has NO self-destruct"'];
+  }
+  return [
+    `shutdown -h +${ttl} "ec2-github-runner TTL ${ttl}m reached - self-terminating" || true`,
+    `echo "TTL armed: this instance self-terminates in ${ttl} minutes"`,
+  ];
+}
+
 // User data scripts are run as the root user
 function buildUserDataScript(githubRegistrationToken, label) {
   if (config.input.runnerHomeDir) {
@@ -11,6 +27,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
     // to be pre-installed in the AMI, so we simply cd into that directory and then start the runner
     return [
       '#!/bin/bash',
+      ...ttlPreamble(),
       `cd "${config.input.runnerHomeDir}"`,
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
@@ -21,6 +38,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
   } else {
     return [
       '#!/bin/bash',
+      ...ttlPreamble(),
       'mkdir actions-runner && cd actions-runner',
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
@@ -92,6 +110,9 @@ async function startEc2Instance(label, githubRegistrationToken) {
     },
     ],
     IamInstanceProfile: { Name: config.input.iamRoleName },
+    // Without this, a shutdown leaves a STOPPED instance and its volume billing
+    // indefinitely. Terminate so the TTL actually reclaims the resources.
+    InstanceInitiatedShutdownBehavior: 'terminate',
     TagSpecifications: config.tagSpecifications,
     InstanceMarketOptions: buildMarketOptions(),
   };
