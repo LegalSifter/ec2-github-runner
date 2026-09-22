@@ -94,10 +94,19 @@ inputs:
       own shutdown at boot and is launched with InstanceInitiatedShutdownBehavior
       set to terminate, so it self-destructs after this long even if the calling
       workflow is cancelled, the stop-runner job never runs, or GitHub is
-      unreachable. Defaults to 360, matching GitHub's own maximum job duration,
-      so no job that GitHub would allow can outlive it. Set to 0 to disable.
+      unreachable.
+
+      The clock starts at BOOT, not at job start, so the budget must cover boot,
+      time spent waiting for a job, the job itself, and teardown. GitHub caps a
+      single job at 6 hours, so the default of 480 (8 hours) leaves 2 hours of
+      headroom above the longest job GitHub will allow. The regression suite in
+      ls-pipeline_refactored-python alone runs over 3 hours.
+
+      Lower it for short workflows - a tighter TTL reclaims a stranded instance
+      sooner. Set to 0 to disable, which restores the old behaviour of an
+      instance that can live forever.
     required: false
-    default: 360
+    default: 480
 
 outputs:
   label:
